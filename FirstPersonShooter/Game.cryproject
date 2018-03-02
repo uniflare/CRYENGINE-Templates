@@ -49,6 +49,10 @@
         {
             "name": "sys_target_platforms",
             "value": "pc,ps4,xboxone,linux"
+        },
+        {
+            "name": "ed_useDevManager",
+            "value": "0"
         }
     ]
 }
