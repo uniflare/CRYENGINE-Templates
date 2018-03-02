@@ -6,6 +6,28 @@
 
 #include <CryRenderer/IRenderAuxGeom.h>
 
+#include <CryExtension/ICryPluginManager.h>
+
+// Sensor volume
+#include <../../CryPlugins/CrySensorSystem/Interface/ICrySensorSystemPlugin.h>
+#include <../../CryPlugins/CrySensorSystem/Interface/ISensorSystem.h>
+#include <../../CryPlugins/CrySensorSystem/Interface/ISensorTagLibrary.h>
+#include <../../CryPlugins/CrySensorSystem/Interface/SensorBounds.h>
+
+CPlayerComponent::~CPlayerComponent()
+{
+	if (m_sensorVolumeId != SensorVolumeId::Invalid)
+	{
+		if (ICryPluginManager* pPluginMan = gEnv->pSystem->GetIPluginManager())
+		{
+			if (ICrySensorSystemPlugin * pSensorPlugin = pPluginMan->QueryPlugin<ICrySensorSystemPlugin>())
+			{
+				pSensorPlugin->GetSensorSystem().GetMap().DestroyVolume(m_sensorVolumeId);
+			}
+		}
+	}
+}
+
 void CPlayerComponent::Initialize()
 {
 	// Create the camera component, will automatically update the viewport every frame
@@ -100,6 +122,28 @@ void CPlayerComponent::Initialize()
 	m_pInputComponent->BindAction("player", "shoot", eAID_KeyboardMouse, EKeyId::eKI_Mouse1);
 
 	m_pAnimationComponent->ResetCharacter();
+
+	// Create the characters' sensor volume
+	if (m_sensorVolumeId == SensorVolumeId::Invalid)
+	{
+		if (ICryPluginManager* pPluginMan = gEnv->pSystem->GetIPluginManager())
+		{
+			if (ICrySensorSystemPlugin * pSensorPlugin = pPluginMan->QueryPlugin<ICrySensorSystemPlugin>())
+			{
+				ISensorTagLibrary * pSensorTagLib = &pSensorPlugin->GetSensorSystem().GetTagLibrary();
+				ISensorMap * pSensorMap = &pSensorPlugin->GetSensorSystem().GetMap();
+
+				SSensorVolumeParams params;
+				params.entityId = m_pEntity->GetId();
+
+				auto tags = SensorTags();
+				tags.Add(pSensorTagLib->GetTag("Player"));
+				params.attributeTags.Add(tags);
+
+				m_sensorVolumeId = pSensorMap->CreateVolume(params);
+			}
+		}
+	}
 	
 	Revive();
 }
@@ -132,6 +176,9 @@ void CPlayerComponent::ProcessEvent(SEntityEvent& event)
 
 		// Update the animation state of the character
 		UpdateAnimation(pCtx->fFrameTime);
+
+		// Update Sensor Volume Bounds
+		UpdateSensorBounds();
 
 		// Update the camera component offset
 		UpdateCamera(pCtx->fFrameTime);
@@ -255,6 +302,29 @@ void CPlayerComponent::UpdateCamera(float frameTime)
 	localTransform.SetTranslation(Vec3(0, viewOffsetForward, viewOffsetUp));
 
 	m_pCameraComponent->SetTransformMatrix(localTransform);
+}
+
+void CPlayerComponent::UpdateSensorBounds() const
+{
+	if (ICryPluginManager* pPluginMan = gEnv->pSystem->GetIPluginManager())
+	{
+		if (ICrySensorSystemPlugin * pSensorPlugin = pPluginMan->QueryPlugin<ICrySensorSystemPlugin>())
+		{
+			ISensorMap * pSensorMap = &pSensorPlugin->GetSensorSystem().GetMap();
+
+			// Get BBox of the parent entity
+			AABB ab;
+			m_pEntity->GetLocalBounds(ab);
+
+			// Create OBB from AABB
+			OBB obb;
+			obb.SetOBBfromAABB(m_pEntity->GetRotation(), ab);
+			obb.c += m_pEntity->GetRotation().GetInverted() * m_pEntity->GetWorldPos();
+
+			// Update bounds with new OBB
+			pSensorMap->UpdateVolumeBounds(m_sensorVolumeId, CSensorBounds(obb));
+		}
+	}
 }
 
 void CPlayerComponent::Revive()
