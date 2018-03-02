@@ -13,6 +13,9 @@
 #include <DefaultComponents/Geometry/AdvancedAnimationComponent.h>
 #include <DefaultComponents/Input/InputComponent.h>
 
+// for sensor volume id type
+#include <../../CryPlugins/CrySensorSystem/Interface/ISensorMap.h>
+
 ////////////////////////////////////////////////////////
 // Represents a player participating in gameplay
 ////////////////////////////////////////////////////////
@@ -88,7 +91,7 @@ class CPlayerComponent final : public IEntityComponent
 
 public:
 	CPlayerComponent() = default;
-	virtual ~CPlayerComponent() {}
+	virtual ~CPlayerComponent();
 
 	// IEntityComponent
 	virtual void Initialize() override;
@@ -110,6 +113,7 @@ protected:
 	void UpdateLookDirectionRequest(float frameTime);
 	void UpdateAnimation(float frameTime);
 	void UpdateCamera(float frameTime);
+	void UpdateSensorBounds() const;
 
 	void SpawnAtSpawnPoint();
 
@@ -140,4 +144,6 @@ protected:
 	Quat m_lookOrientation; //!< Should translate to head orientation in the future
 	float m_horizontalAngularVelocity;
 	MovingAverage<float, 10> m_averagedHorizontalAngularVelocity;
+
+	SensorVolumeId m_sensorVolumeId = SensorVolumeId::Invalid;
 };
