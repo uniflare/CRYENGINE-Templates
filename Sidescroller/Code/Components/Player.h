@@ -10,6 +10,9 @@
 #include <DefaultComponents/Geometry/AdvancedAnimationComponent.h>
 #include <DefaultComponents/Input/InputComponent.h>
 
+// for sensor volume id type
+#include <../../CryPlugins/CrySensorSystem/Interface/ISensorMap.h>
+
 ////////////////////////////////////////////////////////
 // Represents a player participating in gameplay
 ////////////////////////////////////////////////////////
@@ -32,7 +35,7 @@ class CPlayerComponent final : public IEntityComponent
 
 public:
 	CPlayerComponent() = default;
-	virtual ~CPlayerComponent() {}
+	virtual ~CPlayerComponent();
 
 	// IEntityComponent
 	virtual void Initialize() override;
@@ -53,6 +56,7 @@ protected:
 	void UpdateMovementRequest(float frameTime);
 	void UpdateAnimation(float frameTime);
 	void UpdateCamera(float frameTime);
+	void UpdateSensorBounds() const;
 
 	void SpawnAtSpawnPoint();
 
@@ -67,4 +71,6 @@ protected:
 	TagID m_walkTagId;
 
 	TInputFlags m_inputFlags;
+
+	SensorVolumeId m_sensorVolumeId = SensorVolumeId::Invalid;
 };
