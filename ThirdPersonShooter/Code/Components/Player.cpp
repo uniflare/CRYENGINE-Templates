@@ -99,6 +99,8 @@ void CPlayerComponent::Initialize()
 	// Bind the shoot action to left mouse click
 	m_pInputComponent->BindAction("player", "shoot", eAID_KeyboardMouse, EKeyId::eKI_Mouse1);
 
+	m_pAnimationComponent->ResetCharacter();
+	
 	Revive();
 }
 
@@ -267,7 +269,6 @@ void CPlayerComponent::Revive()
 	GetEntity()->SetWorldTM(Matrix34::Create(Vec3(1, 1, 1), IDENTITY, GetEntity()->GetWorldPos()));
 
 	// Apply character to the entity
-	m_pAnimationComponent->ResetCharacter();
 	m_pCharacterController->Physicalize();
 
 	// Reset input now that the player respawned
