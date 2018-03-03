@@ -10,6 +10,9 @@
 
 #include <CrySchematyc/CoreAPI.h>
 
+// for sensor volume id type
+#include <../../CryPlugins/CrySensorSystem/Interface/ISensorMap.h>
+
 struct MovementParams
 {
 	Vec3 pos;
@@ -46,7 +49,7 @@ class CPlayerComponent final : public IEntityComponent
 
 public:
 	CPlayerComponent() = default;
-	virtual ~CPlayerComponent() {}
+	virtual ~CPlayerComponent();
 
 	// IEntityComponent
 	virtual void Initialize() override;
@@ -74,6 +77,7 @@ public:
 protected:
 	void UpdateMovementRequest(float frameTime);
 	void UpdateCamera(float frameTime);
+	void UpdateSensorBounds() const;
 
 	void HandleInputFlagChange(TInputFlags flags, int activationMode, EInputFlagType type = EInputFlagType::Hold);
 
@@ -85,4 +89,6 @@ protected:
 	Vec2 m_mouseDeltaRotation = ZERO;
 	// Should translate to head orientation in the future
 	Quat m_lookOrientation = IDENTITY;
+
+	SensorVolumeId m_sensorVolumeId = SensorVolumeId::Invalid;
 };

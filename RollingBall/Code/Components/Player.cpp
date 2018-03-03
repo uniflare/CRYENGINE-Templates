@@ -6,6 +6,14 @@
 
 #include <CryNetwork/Rmi.h>
 
+#include <CryExtension/ICryPluginManager.h>
+
+// Sensor volume
+#include <../../CryPlugins/CrySensorSystem/Interface/ICrySensorSystemPlugin.h>
+#include <../../CryPlugins/CrySensorSystem/Interface/ISensorSystem.h>
+#include <../../CryPlugins/CrySensorSystem/Interface/ISensorTagLibrary.h>
+#include <../../CryPlugins/CrySensorSystem/Interface/SensorBounds.h>
+
 namespace {
 	static void RegisterCPlayerComponent(Schematyc::IEnvRegistrar& registrar)
 	{
@@ -16,6 +24,20 @@ namespace {
 	}
 
 	CRY_STATIC_AUTO_REGISTER_FUNCTION(&RegisterCPlayerComponent);
+}
+
+CPlayerComponent::~CPlayerComponent()
+{
+	if (m_sensorVolumeId != SensorVolumeId::Invalid)
+	{
+		if (ICryPluginManager* pPluginMan = gEnv->pSystem->GetIPluginManager())
+		{
+			if (ICrySensorSystemPlugin * pSensorPlugin = pPluginMan->QueryPlugin<ICrySensorSystemPlugin>())
+			{
+				pSensorPlugin->GetSensorSystem().GetMap().DestroyVolume(m_sensorVolumeId);
+			}
+		}
+	}
 }
 
 void CPlayerComponent::Initialize()
@@ -112,6 +134,28 @@ void CPlayerComponent::LocalPlayerInitialize()
 
 	// Bind the jump action to the space bar
 	m_pInputComponent->BindAction("player", "jump", eAID_KeyboardMouse, EKeyId::eKI_Space);
+
+	// Create the characters' sensor volume
+	if (m_sensorVolumeId == SensorVolumeId::Invalid)
+	{
+		if (ICryPluginManager* pPluginMan = gEnv->pSystem->GetIPluginManager())
+		{
+			if (ICrySensorSystemPlugin * pSensorPlugin = pPluginMan->QueryPlugin<ICrySensorSystemPlugin>())
+			{
+				ISensorTagLibrary * pSensorTagLib = &pSensorPlugin->GetSensorSystem().GetTagLibrary();
+				ISensorMap * pSensorMap = &pSensorPlugin->GetSensorSystem().GetMap();
+
+				SSensorVolumeParams params;
+				params.entityId = m_pEntity->GetId();
+
+				auto tags = SensorTags();
+				tags.Add(pSensorTagLib->GetTag("Player"));
+				params.attributeTags.Add(tags);
+
+				m_sensorVolumeId = pSensorMap->CreateVolume(params);
+			}
+		}
+	}
 }
 
 uint64 CPlayerComponent::GetEventMask() const
@@ -140,6 +184,9 @@ void CPlayerComponent::ProcessEvent(SEntityEvent& event)
 	case ENTITY_EVENT_UPDATE:
 	{
 		SEntityUpdateContext* pCtx = (SEntityUpdateContext*)event.nParam[0];
+
+		// Update Sensor Volume Bounds
+		UpdateSensorBounds();
 
 		// Camera components exists only for the local player
 		if (m_pCameraComponent)
@@ -242,6 +289,20 @@ void CPlayerComponent::UpdateCamera(float frameTime)
 	localTransform.SetTranslation(-localTransform.GetColumn1() * viewDistance);
 
 	m_pCameraComponent->SetTransformMatrix(localTransform);
+}
+
+void CPlayerComponent::UpdateSensorBounds() const
+{
+	if (ICryPluginManager* pPluginMan = gEnv->pSystem->GetIPluginManager())
+	{
+		if (ICrySensorSystemPlugin * pSensorPlugin = pPluginMan->QueryPlugin<ICrySensorSystemPlugin>())
+		{
+			ISensorMap * pSensorMap = &pSensorPlugin->GetSensorSystem().GetMap();
+
+			// Update bounds with new Sphere
+			pSensorMap->UpdateVolumeBounds(m_sensorVolumeId, CSensorBounds(Sphere(m_pEntity->GetWorldPos(), 1.0f)));
+		}
+	}
 }
 
 void CPlayerComponent::Revive()
